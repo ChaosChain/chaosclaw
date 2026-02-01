@@ -1,56 +1,51 @@
-# Python
+
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
+.chaosclaw_state.json
+.coverage
+.docker/
+.DS_Store
+.eggs/
+.env
+.env.local
+.idea/
+.installed.cfg
+.pytest_cache/
 .Python
+.tox/
+.venv/
+.vscode/
+*.bak
+*.egg
+*.egg-info/
+*.env
+*.log
+*.py[cod]
+*.so
+*.swo
+*.swp
+*.tmp
+*$py.class
+# Docker
+# Environment
+# IDE
+# Logs
+# Misc
+# Python
+# Testing
+# Virtual environments
 build/
 develop-eggs/
 dist/
 downloads/
 eggs/
-.eggs/
+env/
+ENV/
+htmlcov/
 lib/
 lib64/
+logs/
 parts/
 sdist/
 var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual environments
 venv/
-ENV/
-env/
-.venv/
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-.DS_Store
-
-# Environment
-.env
-.env.local
-*.env
-
-# Logs
-*.log
-logs/
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-
-# Docker
-.docker/
-
-# Misc
-*.bak
-*.tmp
+wheels/

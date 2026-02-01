@@ -6,7 +6,10 @@ Fetches reputation data and yields AgentTrust objects.
 """
 
 import asyncio
+import json
+import os
 import structlog
+from pathlib import Path
 from typing import AsyncIterator, Optional
 from web3 import Web3
 from web3.contract import Contract
@@ -18,17 +21,21 @@ from ..core.filters import is_chaoschain_registration
 
 logger = structlog.get_logger(__name__)
 
+# State persistence file path (relative to workspace or absolute)
+STATE_FILE = os.getenv("CHAOSCLAW_STATE_FILE", ".chaosclaw_state.json")
+
 
 # ERC-8004 IdentityRegistry ABI (minimal - just what we need)
+# Uses standard ERC-721 Transfer event: Transfer(address indexed from, address indexed to, uint256 indexed tokenId)
 IDENTITY_REGISTRY_ABI = [
     {
         "anonymous": False,
         "inputs": [
-            {"indexed": True, "name": "agentId", "type": "uint256"},
-            {"indexed": True, "name": "owner", "type": "address"},
-            {"indexed": False, "name": "uri", "type": "string"},
+            {"indexed": True, "name": "from", "type": "address"},
+            {"indexed": True, "name": "to", "type": "address"},
+            {"indexed": True, "name": "tokenId", "type": "uint256"},
         ],
-        "name": "Transfer",  # ERC-721 Transfer event (mint)
+        "name": "Transfer",  # Standard ERC-721 Transfer event (mint when from=0x0)
         "type": "event",
     },
     {
@@ -47,26 +54,29 @@ IDENTITY_REGISTRY_ABI = [
     },
 ]
 
-# ERC-8004 ReputationRegistry ABI (minimal)
+# ERC-8004 ReputationRegistry ABI (from erc-8004-contracts/abis/ReputationRegistry.json)
+# IMPORTANT: Must call getClients() first, then pass those addresses to getSummary()
 REPUTATION_REGISTRY_ABI = [
-    {
-        "inputs": [
-            {"name": "agentId", "type": "uint256"},
-            {"name": "clientAddresses", "type": "address[]"},
-        ],
-        "name": "getSummary",
-        "outputs": [
-            {"name": "count", "type": "uint256"},
-            {"name": "value", "type": "int128"},
-            {"name": "valueDecimals", "type": "uint8"},
-        ],
-        "stateMutability": "view",
-        "type": "function",
-    },
     {
         "inputs": [{"name": "agentId", "type": "uint256"}],
         "name": "getClients",
         "outputs": [{"name": "", "type": "address[]"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [
+            {"name": "agentId", "type": "uint256"},
+            {"name": "clientAddresses", "type": "address[]"},
+            {"name": "tag1", "type": "string"},
+            {"name": "tag2", "type": "string"},
+        ],
+        "name": "getSummary",
+        "outputs": [
+            {"name": "count", "type": "uint64"},
+            {"name": "summaryValue", "type": "int128"},
+            {"name": "summaryValueDecimals", "type": "uint8"},
+        ],
         "stateMutability": "view",
         "type": "function",
     },
@@ -111,16 +121,50 @@ class ERC8004Watcher:
             abi=REPUTATION_REGISTRY_ABI,
         )
         
-        # State
+        # State (with persistence for replay safety)
+        self.state_file = Path(STATE_FILE)
         self.last_block: Optional[int] = None
         self.seen_agents: set[int] = set()
+        
+        # Load persisted state if available
+        self._load_state()
         
         logger.info(
             "erc8004_watcher_initialized",
             network=config.network,
             identity_registry=config.identity_registry_address,
             reputation_registry=config.reputation_registry_address,
+            last_block=self.last_block,
+            seen_agents_count=len(self.seen_agents),
         )
+    
+    def _load_state(self) -> None:
+        """Load persisted state from file (for replay safety)."""
+        try:
+            if self.state_file.exists():
+                with open(self.state_file, "r") as f:
+                    state = json.load(f)
+                self.last_block = state.get("last_block")
+                self.seen_agents = set(state.get("seen_agents", []))
+                logger.info(
+                    "erc8004_watcher_state_loaded",
+                    last_block=self.last_block,
+                    seen_agents_count=len(self.seen_agents),
+                )
+        except Exception as e:
+            logger.warning("erc8004_watcher_state_load_failed", error=str(e))
+    
+    def _save_state(self) -> None:
+        """Persist state to file (for replay safety)."""
+        try:
+            state = {
+                "last_block": self.last_block,
+                "seen_agents": list(self.seen_agents),
+            }
+            with open(self.state_file, "w") as f:
+                json.dump(state, f)
+        except Exception as e:
+            logger.warning("erc8004_watcher_state_save_failed", error=str(e))
     
     async def watch(self) -> AsyncIterator[AgentTrust]:
         """
@@ -134,6 +178,8 @@ class ERC8004Watcher:
             try:
                 async for agent in self._poll_once():
                     yield agent
+                # Save state after each poll cycle for replay safety
+                self._save_state()
             except Exception as e:
                 logger.error("erc8004_watcher_error", error=str(e))
             
@@ -155,8 +201,15 @@ class ERC8004Watcher:
             )
         else:
             from_block = self.last_block + 1
+            logger.info(
+                "erc8004_watcher_polling",
+                from_block=from_block,
+                to_block=current_block,
+                seen_agents_count=len(self.seen_agents),
+            )
         
         if from_block > current_block:
+            logger.debug("erc8004_watcher_no_new_blocks", current_block=current_block)
             return
         
         # Get Transfer events (mints have from=0x0)
@@ -164,8 +217,8 @@ class ERC8004Watcher:
         # For mints, from = 0x0000...
         try:
             events = self.identity_registry.events.Transfer.get_logs(
-                fromBlock=from_block,
-                toBlock=current_block,
+                from_block=from_block,
+                to_block=current_block,
             )
         except Exception as e:
             logger.warning("erc8004_watcher_event_fetch_failed", error=str(e))
@@ -173,12 +226,17 @@ class ERC8004Watcher:
         
         for event in events:
             # Filter for mints only (from = zero address)
-            # The Transfer event has 'from' in args
-            from_addr = event.args.get("from", "0x" + "0" * 40)
-            if from_addr != "0x" + "0" * 40:
+            # Standard ERC-721 Transfer: Transfer(from, to, tokenId)
+            from_addr = event.args.get("from")
+            if from_addr is None:
+                continue
+            
+            # Convert to checksum address for comparison
+            zero_address = "0x" + "0" * 40
+            if Web3.to_checksum_address(from_addr) != Web3.to_checksum_address(zero_address):
                 continue  # Not a mint
             
-            agent_id = event.args.get("agentId") or event.args.get("tokenId")
+            agent_id = event.args.get("tokenId")
             if agent_id is None:
                 continue
             
@@ -276,27 +334,61 @@ class ERC8004Watcher:
         Fetch reputation data from ReputationRegistry.
         
         Returns dict compatible with ChaosChain SDK format.
+        
+        IMPORTANT: ERC-8004 requires two steps:
+        1. Call getClients(agentId) to get list of addresses that gave feedback
+        2. Call getSummary(agentId, clientAddresses) with those addresses
+        
+        Passing an empty array to getSummary returns 0, not "all clients"!
         """
         try:
-            # Get clients first
+            # Step 1: Get the list of clients who have given feedback
             clients = self.reputation_registry.functions.getClients(agent_id).call()
             
-            # Get summary
-            count, value, decimals = self.reputation_registry.functions.getSummary(
-                agent_id, clients
+            logger.debug(
+                "erc8004_watcher_reputation_clients",
+                agent_id=agent_id,
+                client_count=len(clients),
+            )
+            
+            # If no clients have given feedback, return early
+            if not clients:
+                return {
+                    "feedback_count": 0,
+                    "average": 0,
+                }
+            
+            # Step 2: Get summary with the actual client addresses
+            # ERC-8004: getSummary(agentId, clientAddresses[], tag1, tag2) returns (count, value, valueDecimals)
+            # Empty strings for tags = aggregate across all tags
+            count, value, value_decimals = self.reputation_registry.functions.getSummary(
+                agent_id,
+                clients,  # Pass the actual client addresses!
+                "",       # tag1 = empty (all tags)
+                "",       # tag2 = empty (all tags)
             ).call()
             
-            # Normalize value
-            if decimals > 0:
-                normalized_value = value // (10 ** decimals)
+            # Normalize value based on decimals
+            if value_decimals > 0:
+                normalized_value = value // (10 ** value_decimals)
             else:
                 normalized_value = value
             
+            # Clamp to 0-100 range
+            average_score = max(0, min(100, normalized_value))
+            
+            logger.debug(
+                "erc8004_watcher_reputation_fetched",
+                agent_id=agent_id,
+                count=count,
+                raw_value=value,
+                decimals=value_decimals,
+                average=average_score,
+            )
+            
             return {
                 "feedback_count": count,
-                "average": max(0, min(100, normalized_value)),
-                # Note: Individual dimensions would need more calls
-                # For now, we just have the aggregate
+                "average": average_score,
             }
             
         except Exception as e:

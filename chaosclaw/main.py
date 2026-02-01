@@ -16,6 +16,12 @@ from .publishers.x_poster import XPoster
 
 
 # Configure structured logging
+import logging
+import os
+
+log_level = os.getenv("CHAOSCLAW_LOG_LEVEL", "INFO").upper()
+logging.basicConfig(format="%(message)s", level=getattr(logging, log_level, logging.INFO))
+
 structlog.configure(
     processors=[
         structlog.stdlib.filter_by_level,
@@ -30,7 +36,7 @@ structlog.configure(
     ],
     wrapper_class=structlog.stdlib.BoundLogger,
     context_class=dict,
-    logger_factory=structlog.PrintLoggerFactory(),
+    logger_factory=structlog.stdlib.LoggerFactory(),
     cache_logger_on_first_use=True,
 )
 
