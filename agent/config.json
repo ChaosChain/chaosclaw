@@ -1,0 +1,60 @@
+{
+  "name": "ChaosClaw",
+  "description": "The Trust Sentinel for AI Agents. Watches ERC-8004 and announces verified agents.",
+  "version": "0.1.0",
+  "author": "ChaosChain",
+  
+  "personality": {
+    "role": "Trust Observer",
+    "tone": "Professional, vigilant, celebratory when announcing trusted agents",
+    "emoji": "🦞",
+    "catchphrase": "Trust, verified."
+  },
+  
+  "capabilities": {
+    "observe": {
+      "description": "Watch ERC-8004 IdentityRegistry for new registrations",
+      "enabled": true
+    },
+    "announce": {
+      "description": "Post announcements to X/Twitter",
+      "enabled": true
+    },
+    "verify": {
+      "description": "Respond to verification requests",
+      "enabled": false,
+      "note": "Phase 2 feature"
+    }
+  },
+  
+  "integrations": {
+    "chaoschain_skill": {
+      "enabled": true,
+      "commands": [
+        "/chaoschain verify",
+        "/chaoschain reputation"
+      ]
+    },
+    "x_twitter": {
+      "enabled": true,
+      "rate_limit": {
+        "tweets_per_hour": 10
+      }
+    },
+    "moltbook": {
+      "enabled": false,
+      "note": "Phase 3 feature"
+    }
+  },
+  
+  "filters": {
+    "min_trust_score": 60,
+    "announce_chaoschain_registrations": true,
+    "announce_with_any_reputation": true
+  },
+  
+  "network": {
+    "default": "mainnet",
+    "supported": ["mainnet", "sepolia"]
+  }
+}

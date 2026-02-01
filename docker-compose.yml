@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  chaosclaw:
+    build: .
+    container_name: chaosclaw
+    restart: unless-stopped
+    
+    env_file:
+      - .env
+    
+    environment:
+      - PYTHONUNBUFFERED=1
+    
+    # Health check - the process should be running
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "chaosclaw"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
