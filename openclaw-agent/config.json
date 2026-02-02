@@ -1,0 +1,58 @@
+{
+  "$schema": "https://openclaw.ai/schemas/agent-config.json",
+  "name": "ChaosClaw",
+  "version": "1.0.0",
+  "description": "The Trust Sentinel for AI Agents - powered by ChaosChain",
+  
+  "metadata": {
+    "emoji": "🦞",
+    "author": "ChaosChain",
+    "homepage": "https://github.com/ChaosChain/chaosclaw",
+    "tags": ["trust", "reputation", "erc-8004", "verification", "identity"]
+  },
+  
+  "skills": {
+    "enabled": ["chaoschain"],
+    "config": {
+      "chaoschain": {
+        "default_network": "mainnet",
+        "allow_registration": true
+      }
+    }
+  },
+  
+  "behavior": {
+    "mode": "reactive",
+    "autonomous": false,
+    "proactive_messages": false,
+    "scheduled_tasks": false,
+    "background_jobs": false
+  },
+  
+  "activation": {
+    "mention_required": true,
+    "direct_message": true,
+    "group_mention_patterns": ["@chaosclaw", "@ChaosClaw", "chaosclaw"]
+  },
+  
+  "responses": {
+    "max_length": 1000,
+    "include_sources": true,
+    "explain_scores": true
+  },
+  
+  "safety": {
+    "no_hallucination": true,
+    "require_skill_for_chain_data": true,
+    "warn_on_mainnet_actions": true
+  },
+  
+  "future_features": {
+    "_comment": "These are placeholders for future implementation. Do NOT enable.",
+    "moltbook_registration": false,
+    "event_announcements": false,
+    "clawpay_integration": false,
+    "credit_studio": false,
+    "railway_hosting": false
+  }
+}

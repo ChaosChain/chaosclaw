@@ -1,205 +1,162 @@
 # ChaosClaw 🦞⛓️
 
-> The Trust Sentinel for AI Agents
+> **The Trust Sentinel for AI Agents**
 
-ChaosClaw is an autonomous agent that observes ERC-8004 activity and surfaces **high-signal trust information** to the OpenClaw and Moltbook ecosystems.
-
-## Why ChaosClaw Exists
-
-The AI agent ecosystem is exploding. Moltbook has 150,000+ agents. OpenClaw powers millions of personal AI assistants.
-
-**But how do they trust each other?**
-
-[ERC-8004](https://github.com/erc-8004/erc-8004-contracts) is the Ethereum standard for agent identity and reputation. [ChaosChain](https://github.com/ChaosChain/chaoschain) builds trust infrastructure on top of it.
-
-ChaosClaw is the **social layer** — it watches the blockchain, filters for meaningful signals, and announces when agents achieve verified trust status.
+ChaosClaw is a **real OpenClaw AI agent** that helps AI agents establish and verify trust through ERC-8004 identity and reputation.
 
 ## What ChaosClaw Does
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    ChaosClaw Flow                           │
-├─────────────────────────────────────────────────────────────┤
+│                    ChaosClaw                                 │
 │                                                              │
-│   ERC-8004 IdentityRegistry (Mainnet)                       │
-│         │                                                    │
-│         ▼  [event: AgentCreated]                            │
-│   ┌─────────────────┐                                       │
-│   │ ChaosClaw       │                                       │
-│   │ Event Listener  │                                       │
-│   └────────┬────────┘                                       │
-│            │                                                 │
-│            ▼                                                 │
-│   ┌─────────────────┐                                       │
-│   │ Filter Logic    │  ← Only high-signal agents            │
-│   │ (core/filters)  │                                       │
-│   └────────┬────────┘                                       │
-│            │                                                 │
-│            ▼                                                 │
-│   ┌─────────────────┐                                       │
-│   │ Trust Resolver  │  ← Fetch 5-dimension reputation       │
-│   │ (core/reputation)│                                      │
-│   └────────┬────────┘                                       │
-│            │                                                 │
-│            ▼                                                 │
-│   ┌─────────────────┐                                       │
-│   │ X Announcer     │  → "🦞 New verified agent!"           │
-│   │ (publishers/x)  │                                       │
-│   └─────────────────┘                                       │
+│  "Hey ChaosClaw, is agent 540 trustworthy?"                 │
 │                                                              │
+│  ChaosClaw: Let me check! 🔍                                │
+│                                                              │
+│  ✅ Agent #540 is registered on ERC-8004                    │
+│  📊 Trust Score: 86/100                                     │
+│  📈 15 feedback entries                                     │
+│                                                              │
+│  Dimensions:                                                 │
+│  • Quality: 88 🟢                                           │
+│  • Reliability: 85 🟢                                       │
+│  • Speed: 82 🔵                                             │
+│  • Safety: 90 🟢                                            │
+│  • Alignment: 85 🟢                                         │
+│                                                              │
+│  Trust assessment: ✅ Recommended for collaboration         │
 └─────────────────────────────────────────────────────────────┘
 ```
-
-### Signal Filtering
-
-ChaosClaw does NOT announce every registration. It only surfaces agents that meet **trust thresholds**:
-
-| Condition | Why It Matters |
-|-----------|----------------|
-| Registered via ChaosChain skill | Shows ecosystem adoption |
-| Has non-zero reputation | Already trusted by others |
-| Average trust score ≥ 60 | Crossed meaningful threshold |
-
-This keeps the signal-to-noise ratio high.
-
-## Relationship to ChaosChain
-
-| Component | Role |
-|-----------|------|
-| **ChaosChain Contracts** | On-chain consensus + rewards |
-| **ChaosChain Gateway** | Workflow orchestration |
-| **ChaosChain SDK** | Developer interface |
-| **ChaosChain OpenClaw Skill** | `/chaoschain verify` commands |
-| **ChaosClaw** ← you are here | Social distribution agent |
-
-ChaosClaw is a **read-only consumer** of ChaosChain infrastructure. It:
-- ✅ Reads from ERC-8004 contracts
-- ✅ Uses ChaosChain SDK for reputation lookups
-- ❌ Does NOT write transactions
-- ❌ Does NOT modify protocol logic
 
 ## Quick Start
 
 ### Prerequisites
+- [OpenClaw](https://docs.openclaw.ai/install) installed
+- ChaosChain skill from ClawHub
 
-- Python 3.10+
-- Twitter/X API credentials (for announcements)
-- Ethereum RPC endpoint (Mainnet)
-
-### Installation
+### Install ChaosClaw
 
 ```bash
+# Clone the repo
 git clone https://github.com/ChaosChain/chaosclaw.git
 cd chaosclaw
-pip install -r requirements.txt
+
+# Run the installer
+./openclaw-agent/install.sh
 ```
 
-### Configuration
-
-Copy the example environment file:
+### Test It
 
 ```bash
-cp .env.example .env
+# Start the gateway (if not running)
+openclaw gateway
+
+# Send a test message
+openclaw message send --agent chaosclaw --message "Hey, can you verify agent 540?"
 ```
 
-Edit `.env` with your credentials:
+## Capabilities
 
-```bash
-# Ethereum
-ETH_MAINNET_RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY
-
-# Twitter/X API
-TWITTER_API_KEY=your_api_key
-TWITTER_API_SECRET=your_api_secret
-TWITTER_ACCESS_TOKEN=your_access_token
-TWITTER_ACCESS_SECRET=your_access_secret
-
-# Optional: ChaosChain SDK
-CHAOSCHAIN_NETWORK=mainnet
-```
-
-### Run
-
-```bash
-# Start the watcher
-python -m chaosclaw.main
-
-# Or run with Docker
-docker-compose up -d
-```
+| Capability | Command | Description |
+|------------|---------|-------------|
+| **Verify** | `/chaoschain verify <id>` | Check if an agent is registered |
+| **Reputation** | `/chaoschain reputation <id>` | Get detailed trust scores |
+| **Register** | `/chaoschain register` | Help agents register on ERC-8004 |
+| **Explain** | (natural language) | Explain what trust scores mean |
 
 ## Architecture
 
 ```
+┌─────────────────────────────────────────────────────────────┐
+│                     OpenClaw Runtime                         │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │                   ChaosClaw Agent                    │    │
+│  │  ┌───────────────┐    ┌────────────────────────┐   │    │
+│  │  │   SOUL.md     │    │    ChaosChain Skill    │   │    │
+│  │  │  (personality)│    │   (blockchain access)  │   │    │
+│  │  └───────────────┘    └───────────┬────────────┘   │    │
+│  └──────────────────────────────────┬──────────────────┘    │
+│                                      │                       │
+└──────────────────────────────────────┼───────────────────────┘
+                                       │
+                                       ▼
+                           ┌───────────────────────┐
+                           │   ERC-8004 Contracts  │
+                           │   (Ethereum Mainnet)  │
+                           └───────────────────────┘
+```
+
+## What ChaosClaw Is
+
+✅ A **real OpenClaw agent** running inside the OpenClaw runtime  
+✅ A **trust verification assistant** for AI agents  
+✅ **Powered by ChaosChain** for all blockchain interactions  
+✅ **Reactive** - responds when asked, doesn't spam  
+
+## What ChaosClaw Is NOT
+
+❌ A standalone bot that posts to X/Twitter  
+❌ A protocol executor or transaction submitter  
+❌ A payment processor  
+❌ An autonomous agent that messages proactively  
+
+## Directory Structure
+
+```
 chaosclaw/
-├── README.md                 # You are here
-├── chaosclaw/
-│   ├── __init__.py
-│   ├── main.py               # Entry point
-│   ├── config.py             # Configuration loading
-│   │
-│   ├── core/                 # Trust logic (isolated, auditable)
-│   │   ├── __init__.py
-│   │   ├── reputation.py     # Fetch + normalize reputation
-│   │   ├── filters.py        # Trust thresholds + signal detection
-│   │   └── scoring.py        # Averages, buckets, formatting
-│   │
-│   ├── listeners/            # Event sources
-│   │   ├── __init__.py
-│   │   └── erc8004_watcher.py
-│   │
-│   └── publishers/           # Output destinations
-│       ├── __init__.py
-│       └── x_poster.py
+├── openclaw-agent/           # OpenClaw agent configuration
+│   ├── SOUL.md              # Agent personality
+│   ├── config.json          # Agent settings
+│   ├── README.md            # Setup instructions
+│   └── install.sh           # Installation script
 │
-├── agent/                    # OpenClaw agent config (future)
-│   └── config.json
+├── chaosclaw/               # Python utilities (for future features)
+│   ├── core/                # Trust logic
+│   ├── listeners/           # Event watchers (future)
+│   └── publishers/          # Announcement publishers (future)
 │
-├── tests/
-│   └── test_filters.py
-│
-├── requirements.txt
-├── .env.example
-└── docker-compose.yml
+└── tests/                   # Test suite
 ```
 
-## ERC-8004 Contract Addresses
+## Relationship to ChaosChain
 
-| Network | Contract | Address |
-|---------|----------|---------|
-| Mainnet | IdentityRegistry | `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432` |
-| Mainnet | ReputationRegistry | `0x8004BAa17C55a88189AE136b182e5fdA19dE9b63` |
-| Sepolia | IdentityRegistry | `0x8004A818BFB912233c491871b3d84c89A494BD9e` |
-| Sepolia | ReputationRegistry | `0x8004B663056A597Dffe9eCcC1965A193B7388713` |
-
-## Extending ChaosClaw
-
-### Add a New Publisher
-
-```python
-# chaosclaw/publishers/my_publisher.py
-from chaosclaw.core.reputation import AgentTrust
-
-class MyPublisher:
-    async def publish(self, agent: AgentTrust) -> bool:
-        # Your logic here
-        return True
-```
-
-### Add a New Filter
-
-```python
-# chaosclaw/core/filters.py
-def my_custom_filter(agent: AgentTrust) -> bool:
-    return agent.average_score >= 80
-```
+| Component | Role | Status |
+|-----------|------|--------|
+| **ChaosChain Contracts** | On-chain consensus + rewards | ✅ Deployed |
+| **ChaosChain Gateway** | Workflow orchestration | ✅ Running |
+| **ChaosChain SDK** | Developer interface | ✅ Published |
+| **ChaosChain Skill** | OpenClaw integration | ✅ On ClawHub |
+| **ChaosClaw Agent** | Trust sentinel (this repo) | ✅ Ready |
 
 ## Roadmap
 
-- [x] Phase 1: ERC-8004 watcher + X announcements
-- [ ] Phase 2: Mention reply mode (`@chaosclaw verify 542`)
-- [ ] Phase 3: Moltbook posting automation
-- [ ] Phase 4: OpenClaw agent hooks integration
+### Phase 1: Local Agent ✅
+- [x] OpenClaw agent configuration
+- [x] SOUL.md personality
+- [x] ChaosChain skill integration
+- [x] Local testing
+
+### Phase 2: Moltbook Presence (Planned)
+- [ ] Register ChaosClaw on Moltbook
+- [ ] Interact with other agents
+- [ ] Build reputation through helpful interactions
+
+### Phase 3: Event Announcements (Planned)
+- [ ] Announce new high-trust agents
+- [ ] Celebrate reputation milestones
+- [ ] Trust insights and trends
+
+### Phase 4: Studio Integration (Planned)
+- [ ] Credit Studio flows
+- [ ] ClawPay integration
+- [ ] 4Mica guarantee facilitation
+
+## Contributing
+
+ChaosClaw is part of the ChaosChain ecosystem:
+- **Protocol:** [github.com/ChaosChain/chaoschain](https://github.com/ChaosChain/chaoschain)
+- **Skill:** [clawhub.ai/SumeetChougule/chaoschain](https://clawhub.ai/SumeetChougule/chaoschain)
 
 ## License
 
