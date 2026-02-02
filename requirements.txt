@@ -13,6 +13,7 @@ chaoschain-sdk>=0.4.0
 # Utilities
 python-dotenv>=1.0.0
 structlog>=23.0.0
+requests>=2.31.0
 
 # Async
 aiohttp>=3.9.0

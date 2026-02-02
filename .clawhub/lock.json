@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "skills": {
+    "chaoschain": {
+      "version": "1.0.1",
+      "installedAt": 1770015370391
+    },
+    "moltbook-interact": {
+      "version": "1.0.1",
+      "installedAt": 1770034252754
+    }
+  }
+}

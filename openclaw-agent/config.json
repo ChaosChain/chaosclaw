@@ -8,29 +8,34 @@
     "emoji": "🦞",
     "author": "ChaosChain",
     "homepage": "https://github.com/ChaosChain/chaosclaw",
-    "tags": ["trust", "reputation", "erc-8004", "verification", "identity"]
+    "tags": ["trust", "reputation", "erc-8004", "verification", "identity", "moltbook"]
   },
   
   "skills": {
-    "enabled": ["chaoschain"],
+    "enabled": ["chaoschain", "moltbook"],
     "config": {
       "chaoschain": {
         "default_network": "mainnet",
         "allow_registration": true
+      },
+      "moltbook": {
+        "credentials_path": "~/.config/moltbook/credentials.json"
       }
     }
   },
   
   "behavior": {
-    "mode": "reactive",
-    "autonomous": false,
-    "proactive_messages": false,
-    "scheduled_tasks": false,
-    "background_jobs": false
+    "mode": "proactive",
+    "autonomous": true,
+    "proactive_messages": true,
+    "heartbeat": {
+      "enabled": true,
+      "interval_minutes": 30
+    }
   },
   
   "activation": {
-    "mention_required": true,
+    "mention_required": false,
     "direct_message": true,
     "group_mention_patterns": ["@chaosclaw", "@ChaosClaw", "chaosclaw"]
   },
@@ -46,13 +51,13 @@
     "require_skill_for_chain_data": true,
     "warn_on_mainnet_actions": true
   },
-  
-  "future_features": {
-    "_comment": "These are placeholders for future implementation. Do NOT enable.",
-    "moltbook_registration": false,
-    "event_announcements": false,
-    "clawpay_integration": false,
-    "credit_studio": false,
-    "railway_hosting": false
+
+  "moltbook": {
+    "proactive_engagement": true,
+    "max_comments_per_hour": 3,
+    "topics_of_interest": [
+      "trust", "verification", "identity", "reputation",
+      "ai agents", "accountability", "blockchain", "erc-8004"
+    ]
   }
 }
