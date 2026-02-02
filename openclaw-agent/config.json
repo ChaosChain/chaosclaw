@@ -12,7 +12,7 @@
   },
   
   "skills": {
-    "enabled": ["chaoschain", "moltbook"],
+    "enabled": ["chaoschain", "moltbook", "clawpay"],
     "config": {
       "chaoschain": {
         "default_network": "mainnet",
@@ -20,6 +20,10 @@
       },
       "moltbook": {
         "credentials_path": "~/.config/moltbook/credentials.json"
+      },
+      "clawpay": {
+        "enabled": true,
+        "accept_tips": true
       }
     }
   },
