@@ -4,10 +4,11 @@ ClawPay Integration for ChaosClaw
 Private payments via Railgun - no on-chain link between sender and recipient.
 
 API: https://clawpay.dev
+Network: BSC (Binance Smart Chain)
 """
 
 import os
-import aiohttp
+import requests
 from dataclasses import dataclass
 from typing import Optional
 from eth_account import Account
@@ -30,17 +31,18 @@ class ClawPayClient:
     
     Flow:
     1. Sign message to prove wallet ownership
-    2. Get invoice address
-    3. Transfer tokens to invoice
+    2. Get invoice address  
+    3. Transfer tokens to invoice (on BSC)
     4. Execute private transfer
     
     Recipient sees funds from Railgun - no link to sender.
+    
+    Note: ClawPay is currently on BSC. Railgun is also on Ethereum.
     """
     
     def __init__(self, private_key: Optional[str] = None):
         self.private_key = private_key or os.environ.get("CHAOSCLAW_PRIVATE_KEY")
         self.api_url = CLAWPAY_API
-        self._session: Optional[aiohttp.ClientSession] = None
         
         if self.private_key:
             self.account = Account.from_key(self.private_key)
@@ -57,25 +59,18 @@ class ClawPayClient:
         signed = self.account.sign_message(message)
         return signed.signature.hex()
     
-    async def _get_session(self) -> aiohttp.ClientSession:
-        if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
-        return self._session
-    
-    async def close(self):
-        if self._session and not self._session.closed:
-            await self._session.close()
-    
-    async def health_check(self) -> bool:
+    def health_check(self) -> bool:
         """Check if ClawPay API is healthy."""
         try:
-            session = await self._get_session()
-            async with session.get(f"{self.api_url}/health") as resp:
-                return resp.status == 200
+            resp = requests.get(f"{self.api_url}/health", timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                return data.get("status") == "ok"
+            return False
         except:
             return False
     
-    async def get_invoice_address(self) -> Optional[str]:
+    def get_invoice_address(self) -> Optional[str]:
         """
         Get the invoice address for receiving payments.
         Tokens sent here will be shielded via Railgun.
@@ -84,41 +79,41 @@ class ClawPayClient:
             return None
         
         try:
-            session = await self._get_session()
-            async with session.get(
+            resp = requests.get(
                 f"{self.api_url}/invoice",
-                params={"eoa": self.address, "signature": self._signature}
-            ) as resp:
-                data = await resp.json()
-                if data.get("success"):
-                    return data.get("invoiceAddress")
+                params={"eoa": self.address, "signature": self._signature},
+                timeout=30
+            )
+            data = resp.json()
+            if data.get("success"):
+                return data.get("invoiceAddress")
         except:
             pass
         return None
     
-    async def get_balance(self, token: str = "USDT") -> float:
+    def get_balance(self, token: str = "USDT") -> float:
         """Get shielded balance available for private transfers."""
         if not self._signature:
             return 0.0
         
         try:
-            session = await self._get_session()
-            async with session.get(
+            resp = requests.get(
                 f"{self.api_url}/balance",
                 params={
                     "eoa": self.address,
                     "signature": self._signature,
                     "token": token
-                }
-            ) as resp:
-                data = await resp.json()
-                if data.get("success"):
-                    return float(data.get("balance", 0))
+                },
+                timeout=30
+            )
+            data = resp.json()
+            if data.get("success"):
+                return float(data.get("balance", 0))
         except:
             pass
         return 0.0
     
-    async def transfer(
+    def transfer(
         self,
         recipient: str,
         amount: str,
@@ -145,8 +140,7 @@ class ClawPayClient:
             )
         
         try:
-            session = await self._get_session()
-            async with session.post(
+            resp = requests.post(
                 f"{self.api_url}/transfer",
                 json={
                     "eoa": self.address,
@@ -154,41 +148,53 @@ class ClawPayClient:
                     "recipient": recipient,
                     "amount": amount,
                     "token": token
-                }
-            ) as resp:
-                data = await resp.json()
-                
-                if data.get("success"):
-                    return TransferResult(
-                        success=True,
-                        transfer_id=data.get("transferId")
-                    )
-                else:
-                    return TransferResult(
-                        success=False,
-                        error=data.get("error", "Unknown error")
-                    )
+                },
+                timeout=60
+            )
+            data = resp.json()
+            
+            if data.get("success"):
+                return TransferResult(
+                    success=True,
+                    transfer_id=data.get("transferId")
+                )
+            else:
+                return TransferResult(
+                    success=False,
+                    error=data.get("error", "Unknown error")
+                )
         except Exception as e:
             return TransferResult(
                 success=False,
                 error=str(e)
             )
     
-    async def get_transfer_status(self, transfer_id: str) -> dict:
+    def get_transfer_status(self, transfer_id: str) -> dict:
         """Check status of a pending transfer."""
         try:
-            session = await self._get_session()
-            async with session.get(f"{self.api_url}/status/{transfer_id}") as resp:
-                return await resp.json()
+            resp = requests.get(
+                f"{self.api_url}/status/{transfer_id}",
+                timeout=30
+            )
+            return resp.json()
         except:
             return {"success": False, "error": "Failed to check status"}
     
-    async def tip(self, recipient: str, amount: str = "0.10") -> TransferResult:
+    def tip(self, recipient: str, amount: str = "0.10") -> TransferResult:
         """
         Send a small tip to another agent.
         Convenience method with sensible defaults.
         """
-        return await self.transfer(recipient, amount, "USDT")
+        return self.transfer(recipient, amount, "USDT")
+    
+    def get_wallet_info(self) -> dict:
+        """Get wallet info for display."""
+        return {
+            "address": self.address,
+            "configured": self.address is not None,
+            "network": "BSC (Binance Smart Chain)",
+            "api": self.api_url
+        }
 
 
 # Singleton for easy access
